@@ -1,4 +1,5 @@
 import random2 as random
+import numpy as np
 import math     
 
 
@@ -14,8 +15,8 @@ class Cart():
         self.velocity = self.velocity + (acceleration*time_step)
 
     def reset(self):
-        self.x = random.uniform(-20.0, 20.0)
-        self.velocity = random.uniform(-0.2, 0.2)
+        self.x = random.uniform(-5.0, 5.0)
+        self.velocity = random.uniform(-0.0, 0.0)
 
     def print_info(self):
         print("x:", end =" ") 
@@ -44,7 +45,7 @@ class Pole():
             self.theta = self.theta + (2 * math.pi)
 
     def reset(self):
-        self.theta = math.pi + random.uniform(-0.10, 0.10)      #   math.pi   #  random.uniform(-math.pi, math.pi)
+        self.theta =  np.random.choice((0,1))* math.pi #random.uniform(-0.10, 0.10) #+ math.pi      #   math.pi   #  random.uniform(-math.pi, math.pi)
         self.make_in_bounds()
         self.theta_dot = 0       #random.uniform(-0.1, 0.1)
 
@@ -55,5 +56,5 @@ class Pole():
         print(self.theta_dot) 
 
     def give_reward(self):
-        x = math.fabs(self.theta)
-        return -x + (math.pi/2)
+        x = self.theta
+        return 1/((x*x)+0.3)

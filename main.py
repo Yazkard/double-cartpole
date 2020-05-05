@@ -1,7 +1,7 @@
 import sys
 import math
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
+
 import tensorflow as tf
 import gym
 import cv2
@@ -11,6 +11,7 @@ import threading
 import multiprocessing
 from queue import Queue
 import argparse
+
 from custom_gym.doublecartpole import DoubleCartPoleEnv
 
 import random
@@ -30,7 +31,7 @@ BATCH_SIZE = 200
 
 EXPLORATION_MAX = 1.0
 EXPLORATION_MIN = 0.01
-EXPLORATION_DECAY = 0.995
+EXPLORATION_DECAY = 0.998
 
 
 class DQNSolver:
@@ -94,6 +95,7 @@ def cartpole():
         step = 0
         keep=1
         average_reward = 0
+        reward_sum = 0
         while keep:
             step += 1
             env.render()
@@ -106,16 +108,17 @@ def cartpole():
             average_reward = (average_reward * (step - 1) + reward)/step
 
 
-            print("Run: " + str(run))
-            print("step: " + str(step))
-            print("reward: " +str(reward))
-            action_str = "Left" if action == 0 else "Right"
-            print("action: " + action_str)
-            print("average_reward: " + str(average_reward))
+            #print("Run: " + str(run))
+            #print("step: " + str(step))
+            #print("reward: " +str(reward))
+            #action_str = "Left" if action == 0 else "Right"
+            #print("action: " + action_str)
+            #print("average_reward: " + str(average_reward))
+            reward_sum += reward
 
 
             if terminal:
-                #print("Run: " + str(run) + ", exploration: " + str(dqn_solver.exploration_rate) + ", score: " + str(step))
+                print("Run: " + str(run) + ", exploration: " + str(dqn_solver.exploration_rate) + ", score: " + str(reward_sum))
                 dqn_solver.experience_replay()
                 keep=0
                 break

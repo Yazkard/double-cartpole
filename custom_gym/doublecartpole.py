@@ -43,12 +43,12 @@ class DoubleCartPoleEnv(gym.Env):
     metadata = {'render.modes': ['human']}
 
     def __init__(self):
-        self.cart = Cart(10)
-        self.pole_1 = Pole(3, 10, 5)
-        self.pole_2 = Pole(0.5, 10, 7)
+        self.cart = Cart(16)
+        self.pole_1 = Pole(1, 10, 5)
+        self.pole_2 = Pole(0.05, 10, 10)
         self.gravity = 9.8
         self.time_step = 0.02
-        self.force_mag = 200.0
+        self.force_mag = 500.0
 
 
         self.x_threshold = 100
@@ -126,28 +126,17 @@ class DoubleCartPoleEnv(gym.Env):
         
         self.state = (self.cart.x, self.cart.velocity,self.pole_1.theta,self.pole_1.theta_dot, self.pole_2.theta,self.pole_2.theta_dot)
         out_of_bounds =  self.cart.x < -self.x_threshold or self.cart.x > self.x_threshold
-        out_of_bounds = bool(out_of_bounds)
+        done = bool(out_of_bounds)
 
-        out_of_steps = bool(self.steps > 400)
 
-        done = bool(out_of_bounds or out_of_steps)
 
-        if not done:
-            xx = math.fabs(self.cart.x)
-            r1 = 1 if xx < 50 else 0
+        if done:
+            reward = -1000.0
+        else:
             r2 = self.pole_1.give_reward()
             r3 = self.pole_2.give_reward()
-
-            if r1>0 and r2>1.25 and r3>1.25:
-                reward = 1.0
-            else:
-                reward = 0
+            reward = r2+r3
             
-        else:
-            if out_of_bounds:
-                reward = -1.0
-            else :
-                reward = 0.0
 
         return np.array(self.state), reward, done, {}
 
