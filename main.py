@@ -21,8 +21,6 @@ from keras.layers import Dense
 from keras.optimizers import Adam
 
 
-ENV_NAME = "CartPole-v0"
-
 GAMMA = 0.95
 LEARNING_RATE = 0.001
 

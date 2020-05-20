@@ -6,20 +6,19 @@ import numpy as np
 import random
 from matplotlib import pyplot as plt
 from custom_gym.doublecartpole import DoubleCartPoleEnv
+import timeit
 
 
 # AGENT/NETWORK HYPERPARAMETERS
-EPSILON_INITIAL = 1.0 # exploration rate
-EPSILON_DECAY = 0.9997
+EPSILON_INITIAL = 0.3#1.0 # exploration rate
+EPSILON_DECAY = 0.995
 EPSILON_MIN = 0.01
 ALPHA = 0.001 # learning rate
-GAMMA = 0.98 # discount factor
+GAMMA = 0.99 # discount factor
 TAU = 0.1 # target network soft update hyperparameter
-EXPERIENCE_REPLAY_BATCH_SIZE = 300
-AGENT_MEMORY_LIMIT = 6000
-MIN_MEMORY_FOR_EXPERIENCE_REPLAY = 500
-STEPS_BEFORE_REPLAY = 300
-TARGET_UPDATE_RATIO = 5
+EXPERIENCE_REPLAY_BATCH_SIZE = 2000
+AGENT_MEMORY_LIMIT = 30000
+STEPS_BEFORE_REPLAY = 2000
 
 OBSERVATION_SPACE_DIMS = 6
 ACTION_SPACE = [0,1]
@@ -31,29 +30,11 @@ def create_dqn(action_space, observation_space):
     nn.add(Dense(400, input_dim=OBSERVATION_SPACE_DIMS, activation="relu"))
     nn.add(Dense(200, activation='relu'))
     nn.add(Dense(100, activation='relu'))
-    nn.add(Dense(50, activation='relu'))
+    nn.add(Dense(100, activation='relu'))
     nn.add(Dense(len(ACTION_SPACE), activation='linear'))
     nn.compile(loss='mse', optimizer=Adam(lr=ALPHA))
     return nn
-
-def takeScore(elem):
-    return elem[5]
-
-
-def choose_best_steps(memory, n):
-    best = list()
-    best = memory[0:n]
-    best.sort(key= takeScore, reverse=True)
-    for elem in memory:
-        if elem[5] > best[n-1][5]:
-            best[n-1] = elem
-            best.sort(key= takeScore, reverse=True)
-
-    return best
-
-
-
-                  
+        
                   
 class DoubleDQNAgent(object):
 
@@ -82,8 +63,6 @@ class DoubleDQNAgent(object):
     def experience_replay(self):
 
         minibatch = random.sample(self.memory, EXPERIENCE_REPLAY_BATCH_SIZE)
-        #minibatch_best = choose_best_steps(self.memory, EXPERIENCE_REPLAY_BATCH_SIZE)
-        #minibatch.extend(minibatch_best)
         minibatch_new_q_values = []
 
         for state, action, reward, next_state, done in minibatch:
@@ -130,12 +109,13 @@ class DoubleDQNAgent(object):
         return np.reshape(state,(1, OBSERVATION_SPACE_DIMS))  
 
     def save_model(self):
-        self.online_network.save_weights('./model/weights')
-
+        self.online_network.save_weights('./model/weights_online')
+        self.target_network.save_weights('./model/weights_target')
+        
     def load_model(self):
         try:
-            self.target_network.load_weights('./model/weights')
-            self.online_network.load_weights('./model/weights')
+            self.target_network.load_weights('./model/weights_target')
+            self.online_network.load_weights('./model/weights_online')
         except:
             pass   
 
@@ -144,11 +124,12 @@ def test_agent():
     env = DoubleCartPoleEnv()
     trials = []
     NUMBER_OF_TRIALS=1
-    MAX_TRAINING_EPISODES = 1000000
-    MAX_STEPS_PER_EPISODE = 20000
+    MAX_TRAINING_EPISODES = 10000
+    MAX_STEPS_PER_EPISODE = 2000
 
     observation_space = env.observation_space.shape[0]
     action_space = env.action_space.n
+    log_list = list()
 
     for trial_index in range(NUMBER_OF_TRIALS):
         agent = DoubleDQNAgent(action_space, observation_space)
@@ -171,7 +152,9 @@ def test_agent():
                 s+=1
                 steps+=1
                 agent.remember(state, action, reward, next_state, done)
+                #print(state)
                 state = next_state
+                 
                 if s > STEPS_BEFORE_REPLAY:
                     agent.experience_replay()
                     agent.update_target_network()
@@ -185,50 +168,16 @@ def test_agent():
             agent.update_epsilon()
             last_100_avg = np.mean(trial_episode_scores[-100:])
             
+            tmp = "Run: " + str(episode_index) + ", steps_pipodone: " + str(steps) + ", avg_points_per_step: " + str(episode_score/steps) + ", exploration: " + str(agent.epsilon) + ", score: " + str(episode_score) +", avg_last_100_score: " + str(last_100_avg)+"\n"
+            log_list.append(tmp)
 
-            with open("log3.log", "a") as myfile:
-                myfile.write("Run: " + str(episode_index) + ", steps_done: " + str(steps) + ", avg_points_per_step: " + str(episode_score/steps) + ", exploration: " + str(agent.epsilon) + ", score: " + str(episode_score) +", avg_last_100_score: " + str(last_100_avg)+"\n")
-
-
-  
-            #print("Run: " + str(episode_index) + ", exploration: " + str(agent.epsilon) + ", score: " + str(episode_score) +", score: " + str(last_100_avg), file=sample)
-        
-            
-            #print 'E %d scored %d, avg %.2f' % (episode_index, episode_score, last_100_avg)
-            #if len(trial_episode_scores) >= 100 and last_100_avg >= 195.0:
-            #    print 'Trial %d solved in %d episodes!' % (trial_index, (episode_index - 100))
-            #    break
+            if len(log_list)>10:
+                with open("log3.log", "a") as myfile:
+                    for log in log_list:
+                        myfile.write(log)
+                log_list = list()
         trials.append(np.array(trial_episode_scores))
     return np.array(trials)
-
-
-
-def plot_trials(trials):
-    _, axis = plt.subplots()    
-
-    for i, trial in enumerate(trials):
-        steps_till_solve = trial.shape[0]-100
-        # stop trials at 2000 steps
-        if steps_till_solve < 1900:
-            bar_color = 'b'
-            bar_label = steps_till_solve
-        else:
-            bar_color = 'r'
-            bar_label = 'Stopped at 2000'
-        plt.bar(np.arange(i,i+1), steps_till_solve, 0.5, color=bar_color, align='center', alpha=0.5)
-        axis.text(i-.25, steps_till_solve + 20, bar_label, color=bar_color)
-
-    plt.ylabel('Episodes Till Solve')
-    plt.xlabel('Trial')
-    trial_labels = [str(i+1) for i in range(len(trials))]
-    plt.xticks(np.arange(len(trials)), trial_labels)
-    # remove y axis labels and ticks
-    axis.yaxis.set_major_formatter(plt.NullFormatter())
-    plt.tick_params(axis='both', left='off')
-
-    plt.title('Double DQN CartPole v-0 Trials')
-    plt.show()
-
 
 def plot_individual_trial(trial):
     plt.plot(trial)
@@ -241,7 +190,6 @@ def plot_individual_trial(trial):
 if __name__ == '__main__':
     trials = test_agent()
     # print 'Saving', file_name
-    # np.save('double_dqn_cartpole_trials.npy', trials)
-    # trials = np.load('double_dqn_cartpole_trials.npy')
-    #plot_trials(trials)
-    #plot_individual_trial(trials[1])
+    np.save('double_dqn_cartpole_trials.npy', trials)
+    trials = np.load('double_dqn_cartpole_trials.npy')
+    plot_individual_trial(trials[1])

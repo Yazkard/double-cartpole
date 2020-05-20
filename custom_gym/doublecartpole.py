@@ -6,6 +6,12 @@ import numpy as np
 from custom_gym.models import Pole, Cart
 from gym.envs.classic_control import rendering
 
+def direction(x):
+    if x >= 0:
+        return 1
+    else:
+        return -1
+
 class DoubleCartPoleEnv(gym.Env):
     """
     Description:
@@ -43,11 +49,11 @@ class DoubleCartPoleEnv(gym.Env):
     metadata = {'render.modes': ['human']}
 
     def __init__(self):
-        self.cart = Cart(16)
-        self.pole_1 = Pole(1, 10, 5)
-        self.pole_2 = Pole(0.05, 10, 10)
+        self.cart = Cart(1)
+        self.pole_1 = Pole(1, 10, 10)
+        self.pole_2 = Pole(0.1, 10, 10)
         self.gravity = 9.8
-        self.time_step = 0.02
+        self.time_step = 0.01
         self.force_mag = 500.0
 
 
@@ -98,6 +104,10 @@ class DoubleCartPoleEnv(gym.Env):
         V[1] = -1 * ((m2 * self.gravity * l2)+(m3 * self.gravity * L2)) * math.sin(theta2)
         V[2] = -1 * m3 * self.gravity * l3 * math.sin(theta3)
 
+        Fp = np.zeros(3)
+        Fp[1] = direction(self.pole_1.theta_dot) * self.pole_1.theta_dot*self.pole_1.theta_dot * 0.5 * self.pole_1.length * self.pole_1.length/4
+        Fp[2] = direction(self.pole_2.theta_dot) * self.pole_2.theta_dot*self.pole_2.theta_dot * 0.5 * self.pole_2.length * self.pole_2.length/4
+
         b = np.zeros(3)
         b[0] = 1.0
         b[1] = -1 * ((m2 * l2)+(m3 * L2)) * math.cos(theta2)
@@ -112,7 +122,7 @@ class DoubleCartPoleEnv(gym.Env):
 
         Finv = np.linalg.inv(F)
         
-        T = Finv.dot((force /self.cart.mass * b) - V - G)
+        T = Finv.dot((force /self.cart.mass * b) - V - G -Fp)
 
         self.cart.make_step(  -T[0], self.time_step)
         self.pole_1.make_step(T[1], self.time_step)
@@ -133,9 +143,13 @@ class DoubleCartPoleEnv(gym.Env):
         if done:
             reward = -1000.0
         else:
-            r2 = self.pole_1.give_reward()
-            r3 = self.pole_2.give_reward()
-            reward = r2+r3
+            r1,v1 = self.pole_1.give_reward()
+            r2,v2 = self.pole_2.give_reward()
+            # print("r1   "+str(r1))
+            # print("r2   "+str(r2))
+            # print("v1   "+str(v1))
+            # print("v2   "+str(v2))
+            reward = r1+r2-(v1+v2) 
             
 
         return np.array(self.state), reward, done, {}
@@ -162,6 +176,7 @@ class DoubleCartPoleEnv(gym.Env):
         carty = 180 # TOP OF CART
         polewidth = 6.0
         polelen1 = scale * self.pole_1.length
+        polelen2 = scale * self.pole_2.length
         cartwidth = 40.0
         cartheight = 15.0
 
@@ -183,6 +198,7 @@ class DoubleCartPoleEnv(gym.Env):
             pole1.add_attr(self.carttrans)
             self.viewer.add_geom(pole1)
 
+            l,r,t,b = -polewidth/2,polewidth/2,polelen2-polewidth/2,-polewidth/2
             pole2 = rendering.FilledPolygon([(l,b), (l,t), (r,t), (r,b)])
             pole2.set_color(.5,.6,.4)
             self.poletrans2 = rendering.Transform(translation=(0, axleoffset))
@@ -207,6 +223,8 @@ class DoubleCartPoleEnv(gym.Env):
         l,r,t,b = -polewidth/2,polewidth/2,polelen1-polewidth/2,-polewidth/2
         pole1.v = [(l,b), (l,t), (r,t), (r,b)]
 
+
+        l,r,t,b = -polewidth/2,polewidth/2,polelen2-polewidth/2,-polewidth/2
         pole2 = self._pole_geom2
         pole2.v = [(l,b), (l,t), (r,t), (r,b)]
 

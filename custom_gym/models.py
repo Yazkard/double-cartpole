@@ -2,6 +2,11 @@ import random2 as random
 import numpy as np
 import math     
 
+def direction(x):
+    if x >= 0:
+        return 1
+    else:
+        return -1
 
 class Cart():
     def __init__(self, mass):
@@ -39,13 +44,18 @@ class Pole():
         self.make_in_bounds()
 
     def make_in_bounds(self):
-        if self.theta>math.pi:
-            self.theta = self.theta - (2 * math.pi)
-        if self.theta<-math.pi:
-            self.theta = self.theta + (2 * math.pi)
+        ok = False
+        while not ok:
+            if self.theta<=math.pi and self.theta>-math.pi:
+                ok = True
+            else:
+                if self.theta>math.pi:
+                    self.theta = self.theta - (2 * math.pi)
+                elif self.theta<=-math.pi:
+                    self.theta = self.theta + (2 * math.pi)
 
     def reset(self):
-        self.theta =  np.random.choice((0,1))* math.pi #random.uniform(-0.10, 0.10) #+ math.pi      #   math.pi   #  random.uniform(-math.pi, math.pi)
+        self.theta = np.random.choice((0,1))* math.pi + random.uniform(-0.5, 0.5) #np.random.choice((0,1))* math.pi + random.uniform(-0.5, 0.5) #random.uniform(-math.pi, math.pi)#0  #random.uniform(-0.10, 0.10) #+ math.pi      #   math.pi   #  random.uniform(-math.pi, math.pi)
         self.make_in_bounds()
         self.theta_dot = 0       #random.uniform(-0.1, 0.1)
 
@@ -56,5 +66,12 @@ class Pole():
         print(self.theta_dot) 
 
     def give_reward(self):
-        x = self.theta
-        return 1/((x*x)+0.3)
+        th = self.theta
+        th_dot = self.theta_dot
+        c = math.cos(self.theta/2)
+        pos_reward = (1/((th*th)+0.3))
+        if math.fabs(th_dot)>20:
+            vel_reward = 1000   #minus points - we dont want it to spin super fast
+        else:
+            vel_reward = ((2*(c*c))-1) * math.fabs(th_dot)
+        return pos_reward, vel_reward
